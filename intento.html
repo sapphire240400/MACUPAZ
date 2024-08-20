@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>YA ME QUIERO IR ALV</title>
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.4.2/mammoth.browser.min.js"></script>
+</head>
+<body>
+    <h2>SUBIR DOCUMENTO</h2>
+
+    <input type="file" id="upload" name="word_document" accept=".docx">
+    <br><br> <hr> <br>
+
+    <!-- Selector para elegir el encabezado a citar -->
+    <label for="h1-selector">Seleccionar encabezado para citar:</label>
+    <select id="h1-selector">
+        <option value="">Seleccione un encabezado</option>
+    </select>
+    <br><br>
+
+    <!-- Div para mostrar el contenido citado -->
+    <div id="cited-content"></div>
+
+    <!-- Divs separados para H1 y el contenido entre ellos -->
+    <!-- <div id="h1-output"></div> -->
+    <div id="content-output"></div>
+
+    <script>
+        let extractedContent = [];
+
+        // Función para leer el archivo y convertirlo a HTML
+        function readAndConvertFile(file) {
+            const reader = new FileReader();
+            reader.onload = function(event) {
+                const arrayBuffer = event.target.result;
+                mammoth.convertToHtml({ arrayBuffer: arrayBuffer })
+                    .then(function(result) {
+                        processHtml(result.value);
+                    })
+                    .catch(function(err) {
+                        console.error('Error reading file:', err);
+                    });
+            };
+            reader.readAsArrayBuffer(file);
+        }
+
+        // Función para procesar el HTML y extraer el contenido entre los <h1>
+        function processHtml(html) {
+            const parser = new DOMParser();
+            const doc = parser.parseFromString(html, 'text/html');
+            const h1Elements = doc.querySelectorAll('h1');
+            extractedContent = extractContentBetweenH1(h1Elements);
+            populateH1Selector(extractedContent);
+            displayOutput(extractedContent);
+        }
+
+        // Función para extraer el contenido de los <h1> y el contenido entre ellos
+        function extractContentBetweenH1(h1Elements) {
+            let contentArray = [];
+
+            for (let i = 0; i < h1Elements.length; i++) {
+                const h1Text = h1Elements[i].textContent;
+                let content = '';
+
+                let nextSibling = h1Elements[i].nextSibling;
+                while (nextSibling && nextSibling !== h1Elements[i + 1]) {
+                    if (nextSibling.nodeType === Node.ELEMENT_NODE) {
+                        content += nextSibling.outerHTML;
+                    } else if (nextSibling.nodeType === Node.TEXT_NODE) {
+                        content += nextSibling.textContent;
+                    }
+                    nextSibling = nextSibling.nextSibling;
+                }
+
+                // Guarda el encabezado y su contenido
+                contentArray.push({ h1Text, content });
+            }
+            return contentArray;
+        }
+
+        // Función para llenar el selector con los encabezados extraídos
+        function populateH1Selector(contentArray) {
+            const selector = document.getElementById('h1-selector');
+            selector.innerHTML = '<option value="">Seleccione un encabezado</option>';
+
+            contentArray.forEach((item, index) => {
+                const option = document.createElement('option');
+                option.value = index;
+                option.textContent = item.h1Text;
+                selector.appendChild(option);
+            });
+        }
+
+        // Función para mostrar el resultado en los divs de salida
+        function displayOutput(contentArray) {
+            const h1Output = contentArray.map(item => `<h1>${item.h1Text}</h1>`).join('<br>');
+            const contentOutput = contentArray.map(item => `<div>${item.content}</div>`).join('<br>');
+
+            document.getElementById('h1-output').innerHTML = h1Output;
+            document.getElementById('content-output').innerHTML = contentOutput;
+        }
+
+        // Evento que se dispara cuando se selecciona un archivo
+        document.getElementById('upload').addEventListener('change', function(event) {
+            const file = event.target.files[0];
+            if (file) {
+                readAndConvertFile(file);
+            }
+        });
+
+        // Evento que se dispara cuando se selecciona un encabezado en el selector
+        document.getElementById('h1-selector').addEventListener('change', function(event) {
+            const selectedIndex = event.target.value;
+            if (selectedIndex !== '') {
+                const selectedContent = extractedContent[selectedIndex].content;
+                document.getElementById('cited-content').innerHTML = `<div>${selectedContent}</div>`;
+            } else {
+                document.getElementById('cited-content').innerHTML = '';
+            }
+        });
+    </script>
+
+</body>
+</html>
